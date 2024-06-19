@@ -3225,8 +3225,4 @@ void Indexes_ReplaceMatchingWithSchemaRules(RedisModuleCtx *ctx, RedisModuleStri
   Indexes_SpecOpsIndexingCtxFree(from_specs);
   Indexes_SpecOpsIndexingCtxFree(to_specs);
 }
-
-void Indexes_SetErrorMessage(const char *error, RedisModuleString *key) {
-
-}
 ///////////////////////////////////////////////////////////////////////////////////////////////
