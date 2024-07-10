@@ -51,7 +51,10 @@ static void FGC_updateStats(ForkGC *gc, RedisSearchCtx *sctx,
 }
 
 static void FGC_sendFixed(ForkGC *fgc, const void *buff, size_t len) {
-  RS_LOG_ASSERT(len > 0, "buffer length cannot be 0");
+  if (len == 0) {
+    // Empty message --> Do not write anything.
+    return;
+  }
   ssize_t size = write(fgc->pipefd[GC_WRITERFD], buff, len);
   if (size != len) {
     perror("broken pipe, exiting GC fork: write() failed");
@@ -175,9 +178,9 @@ static bool FGC_childRepairInvidx(ForkGC *gc, RedisSearchCtx *sctx, InvertedInde
   MSG_DeletedBlock *deleted = array_new(MSG_DeletedBlock, 10);
   IndexBlock *blocklist = array_new(IndexBlock, idx->size);
   MSG_IndexInfo ixmsg = {.nblocksOrig = idx->size};
-  IndexRepairParams params_s = {0};
   bool rv = false;
   if (!params) {
+    IndexRepairParams params_s = {0};
     params = &params_s;
   }
 
@@ -536,6 +539,19 @@ static void FGC_childCollectMissingDocs(ForkGC *gc, RedisSearchCtx *sctx) {
   FGC_sendTerminator(gc);
 }
 
+static void FGC_childCollectexistingDocs(ForkGC *gc, RedisSearchCtx *sctx) {
+  IndexSpec *spec = sctx->spec;
+
+  InvertedIndex *idx = spec->existingDocs;
+  if (idx) {
+    struct iovec iov = {.iov_base = (void *)"tmp", strlen("tmp")};
+    FGC_childRepairInvidx(gc, sctx, idx, sendHeaderString, &iov, NULL);
+  }
+
+  // we are done with existing docs inverted index
+  FGC_sendTerminator(gc);
+}
+
 static void FGC_childScanIndexes(ForkGC *gc, IndexSpec *spec) {
   RedisSearchCtx sctx = SEARCH_CTX_STATIC(gc->ctx, spec);
   RedisModule_Log(sctx.redisCtx, "debug", "ForkGC in index %s - child scanning indexes start", sctx.spec->name);
@@ -543,6 +559,7 @@ static void FGC_childScanIndexes(ForkGC *gc, IndexSpec *spec) {
   FGC_childCollectNumeric(gc, &sctx);
   FGC_childCollectTags(gc, &sctx);
   FGC_childCollectMissingDocs(gc, &sctx);
+  FGC_childCollectexistingDocs(gc, &sctx);
   RedisModule_Log(sctx.redisCtx, "debug", "ForkGC in index %s - child scanning indexes end", sctx.spec->name);
 }
 
@@ -1181,6 +1198,58 @@ cleanup:
   return status;
 }
 
+static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
+  FGCError status = FGC_COLLECTED;
+
+  InvIdxBuffers idxbufs = {0};
+  MSG_IndexInfo info = {0};
+  size_t fieldNameLen;
+  char *fieldName = NULL;
+
+  if (FGC_recvBuffer(gc, (void **)&fieldName, &fieldNameLen) != REDISMODULE_OK) {
+    return FGC_CHILD_ERROR;
+  }
+
+  if (FGC_recvInvIdx(gc, &idxbufs, &info) != REDISMODULE_OK) {
+    return FGC_CHILD_ERROR;
+  }
+
+  StrongRef spec_ref = WeakRef_Promote(gc->index);
+  IndexSpec *sp = StrongRef_Get(spec_ref);
+  if (!sp) {
+    status = FGC_SPEC_DELETED;
+    goto cleanup;
+  }
+
+  RedisSearchCtx sctx_ = SEARCH_CTX_STATIC(gc->ctx, sp);
+  RedisSearchCtx *sctx = &sctx_;
+
+  RedisSearchCtx_LockSpecWrite(sctx);
+
+  InvertedIndex *idx = sp->existingDocs;
+
+  FGC_applyInvertedIndex(gc, &idxbufs, &info, idx);
+  FGC_updateStats(gc, sctx, info.nentriesCollected, info.nbytesCollected, info.nbytesAdded);
+
+  // if (idx->numDocs == 0) {
+  //   // inverted index was cleaned entirely lets free it
+    
+  // }
+
+cleanup:
+
+  if (sp) {
+    RedisSearchCtx_UnlockSpec(sctx);
+    StrongRef_Release(spec_ref);
+  }
+  if (status != FGC_COLLECTED)  {
+    freeInvIdx(&idxbufs, &info);
+  } else {
+    rm_free(idxbufs.changedBlocks);
+  }
+  return status;
+}
+
 FGCError FGC_parentHandleFromChild(ForkGC *gc) {
   FGCError status = FGC_COLLECTED;
   RedisModule_Log(gc->ctx, "debug", "ForkGC - parent start applying changes");
@@ -1196,6 +1265,7 @@ FGCError FGC_parentHandleFromChild(ForkGC *gc) {
   COLLECT_FROM_CHILD(FGC_parentHandleNumeric(gc));
   COLLECT_FROM_CHILD(FGC_parentHandleTags(gc));
   COLLECT_FROM_CHILD(FGC_parentHandleMissingDocs(gc));
+  COLLECT_FROM_CHILD(FGC_parentHandleExistingDocs(gc));
   RedisModule_Log(gc->ctx, "debug", "ForkGC - parent ends applying changes");
 
   return status;

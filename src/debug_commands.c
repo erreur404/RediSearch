@@ -630,7 +630,7 @@ DEBUG_COMMAND(GCForceInvoke) {
   if (argc < 3 || argc > 4) {
     return RedisModule_WrongArity(ctx);
   }
-  long long timeout = 30000;
+  long long timeout = 300000;
 
   if (argc == 4) {
     RedisModule_StringToLongLong(argv[3], &timeout);

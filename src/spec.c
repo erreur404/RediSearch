@@ -414,6 +414,11 @@ IndexSpec *IndexSpec_CreateNew(RedisModuleCtx *ctx, RedisModuleString **argv, in
     IndexSpec_SetTimeoutTimer(sp, StrongRef_Demote(spec_ref));
   }
 
+  // Create the existing docs inverted index
+  size_t index_size;
+  sp->existingDocs = NewInvertedIndex(Index_DocIdsOnly, 1, &index_size);
+  sp->stats.invertedSize += index_size;
+
   if (!(sp->flags & Index_SkipInitialScan)) {
     IndexSpec_ScanAndReindex(ctx, spec_ref);
   }
@@ -1406,6 +1411,10 @@ static void IndexSpec_FreeUnlinkedData(IndexSpec *spec) {
   // Free missingFieldDict
   if (spec->missingFieldDict) {
     dictRelease(spec->missingFieldDict);
+  }
+  // Free existing docs inverted index
+  if (spec->existingDocs) {
+    InvertedIndex_Free(spec->existingDocs);
   }
   // Free synonym data
   if (spec->smap) {

@@ -13,6 +13,7 @@ void printReadIt(RedisModule_Reply *reply, IndexIterator *root, size_t counter, 
   RedisModule_Reply_Map(reply);
 
   if (ir->idx->flags == Index_DocIdsOnly) {
+    // TODO: Needs to be updated.
     printProfileType("TAG");
     REPLY_KVSTR_SAFE("Term", ir->record->term.term->str);
   } else if (ir->idx->flags & Index_StoreNumeric) {

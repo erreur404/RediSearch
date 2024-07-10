@@ -1031,6 +1031,13 @@ static int NI_ReadSorted(void *ctx, RSIndexResult **hit) {
   }
 
   // advance our reader by one, and let's test if it's a valid value or not
+
+  // TODO: We need to place a wildcard iterator in the stomach of this iterator instead of this increment
+  // since this is equivalent to the current wildcard iterator behavior.
+  // Accordingly, we will need to address the different cases possible in the new state:
+    // For instance, now we will be able to have a scenario in which the doc-id of the base
+    // is higher than the one of that we got from the child (the current child) - since the GC didn't work yet
+    // and the doc-table is updated instantaneously.
   nc->base.current->docId++;
 
   // If we don't have a child result, or the child result is ahead of the current counter,
@@ -1390,27 +1397,32 @@ static size_t WI_NumEstimated(void *p) {
 
 /* Create a new wildcard iterator */
 IndexIterator *NewWildcardIterator(t_docId maxId, size_t numDocs) {
-  WildcardIteratorCtx *c = rm_calloc(1, sizeof(*c));
-  c->current = 0;
-  c->topId = maxId;
-  c->numDocs = numDocs;
+  
 
-  CURRENT_RECORD(c) = NewVirtualResult(1, RS_FIELDMASK_ALL);
-  CURRENT_RECORD(c)->freq = 1;
 
-  IndexIterator *ret = &c->base;
-  ret->ctx = c;
-  ret->type = WILDCARD_ITERATOR;
-  ret->Free = WI_Free;
-  ret->HasNext = WI_HasNext;
-  ret->LastDocId = WI_LastDocId;
-  ret->Len = WI_Len;
-  ret->Read = WI_Read;
-  ret->SkipTo = WI_SkipTo;
-  ret->Abort = WI_Abort;
-  ret->Rewind = WI_Rewind;
-  ret->NumEstimated = WI_NumEstimated;
-  return ret;
+
+
+  // WildcardIteratorCtx *c = rm_calloc(1, sizeof(*c));
+  // c->current = 0;
+  // c->topId = maxId;
+  // c->numDocs = numDocs;
+
+  // CURRENT_RECORD(c) = NewVirtualResult(1, RS_FIELDMASK_ALL);
+  // CURRENT_RECORD(c)->freq = 1;
+
+  // IndexIterator *ret = &c->base;
+  // ret->ctx = c;
+  // ret->type = WILDCARD_ITERATOR;
+  // ret->Free = WI_Free;
+  // ret->HasNext = WI_HasNext;
+  // ret->LastDocId = WI_LastDocId;
+  // ret->Len = WI_Len;
+  // ret->Read = WI_Read;
+  // ret->SkipTo = WI_SkipTo;
+  // ret->Abort = WI_Abort;
+  // ret->Rewind = WI_Rewind;
+  // ret->NumEstimated = WI_NumEstimated;
+  // return ret;
 }
 
 static int EOI_Read(void *p, RSIndexResult **e) {

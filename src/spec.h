@@ -325,6 +325,9 @@ typedef struct IndexSpec {
   // Contains inverted indexes of missing fields
   dict *missingFieldDict;
 
+  // Contains all the existing documents (for wildcard search)
+  InvertedIndex *existingDocs;
+
 } IndexSpec;
 
 typedef enum SpecOp { SpecOp_Add, SpecOp_Del } SpecOp;
