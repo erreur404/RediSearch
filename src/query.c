@@ -877,7 +877,9 @@ static IndexIterator *Query_EvalWildcardNode(QueryEvalCtx *q, QueryNode *qn) {
 
   if (q->sctx->spec->existingDocs) {
     IndexReader *ir = NewGenericIndexReader(q->sctx->spec->existingDocs, q->sctx->spec, 1, 1);
-    return NewReadIterator(ir);
+    IndexIterator *ret = NewReadIterator(ir);
+    ret->type = WILDCARD_ITERATOR;
+    return ret;
   }
 
   // The inverted index for the existing docs does not exist (mind the irony..)

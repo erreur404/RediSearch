@@ -1397,32 +1397,27 @@ static size_t WI_NumEstimated(void *p) {
 
 /* Create a new wildcard iterator */
 IndexIterator *NewWildcardIterator(t_docId maxId, size_t numDocs) {
-  
+  WildcardIteratorCtx *c = rm_calloc(1, sizeof(*c));
+  c->current = 0;
+  c->topId = maxId;
+  c->numDocs = numDocs;
 
+  CURRENT_RECORD(c) = NewVirtualResult(1, RS_FIELDMASK_ALL);
+  CURRENT_RECORD(c)->freq = 1;
 
-
-
-  // WildcardIteratorCtx *c = rm_calloc(1, sizeof(*c));
-  // c->current = 0;
-  // c->topId = maxId;
-  // c->numDocs = numDocs;
-
-  // CURRENT_RECORD(c) = NewVirtualResult(1, RS_FIELDMASK_ALL);
-  // CURRENT_RECORD(c)->freq = 1;
-
-  // IndexIterator *ret = &c->base;
-  // ret->ctx = c;
-  // ret->type = WILDCARD_ITERATOR;
-  // ret->Free = WI_Free;
-  // ret->HasNext = WI_HasNext;
-  // ret->LastDocId = WI_LastDocId;
-  // ret->Len = WI_Len;
-  // ret->Read = WI_Read;
-  // ret->SkipTo = WI_SkipTo;
-  // ret->Abort = WI_Abort;
-  // ret->Rewind = WI_Rewind;
-  // ret->NumEstimated = WI_NumEstimated;
-  // return ret;
+  IndexIterator *ret = &c->base;
+  ret->ctx = c;
+  ret->type = WILDCARD_ITERATOR;
+  ret->Free = WI_Free;
+  ret->HasNext = WI_HasNext;
+  ret->LastDocId = WI_LastDocId;
+  ret->Len = WI_Len;
+  ret->Read = WI_Read;
+  ret->SkipTo = WI_SkipTo;
+  ret->Abort = WI_Abort;
+  ret->Rewind = WI_Rewind;
+  ret->NumEstimated = WI_NumEstimated;
+  return ret;
 }
 
 static int EOI_Read(void *p, RSIndexResult **e) {

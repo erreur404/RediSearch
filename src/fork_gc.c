@@ -52,7 +52,7 @@ static void FGC_updateStats(ForkGC *gc, RedisSearchCtx *sctx,
 
 static void FGC_sendFixed(ForkGC *fgc, const void *buff, size_t len) {
   if (len == 0) {
-    // Empty message --> Do not write anything.
+    // Empty message -> Do not write anything.
     return;
   }
   ssize_t size = write(fgc->pipefd[GC_WRITERFD], buff, len);
@@ -544,6 +544,7 @@ static void FGC_childCollectexistingDocs(ForkGC *gc, RedisSearchCtx *sctx) {
 
   InvertedIndex *idx = spec->existingDocs;
   if (idx) {
+    // TODO: Remove this redundant header sending (sent later in `headerCallback`)
     struct iovec iov = {.iov_base = (void *)"tmp", strlen("tmp")};
     FGC_childRepairInvidx(gc, sctx, idx, sendHeaderString, &iov, NULL);
   }
@@ -764,92 +765,6 @@ static void FGC_applyInvertedIndex(ForkGC *gc, InvIdxBuffers *idxData, MSG_Index
   idx->gcMarker++;
 }
 
-static FGCError FGC_parentHandleTerms(ForkGC *gc) {
-  FGCError status = FGC_COLLECTED;
-  size_t len;
-  char *term = NULL;
-  if (FGC_recvBuffer(gc, (void **)&term, &len) != REDISMODULE_OK) {
-    return FGC_CHILD_ERROR;
-  }
-  RedisModuleKey *idxKey = NULL;
-
-  if (term == RECV_BUFFER_EMPTY) {
-    return FGC_DONE;
-  }
-
-  InvIdxBuffers idxbufs = {0};
-  MSG_IndexInfo info = {0};
-  if (FGC_recvInvIdx(gc, &idxbufs, &info) != REDISMODULE_OK) {
-    rm_free(term);
-    return FGC_CHILD_ERROR;
-  }
-
-  StrongRef spec_ref = WeakRef_Promote(gc->index);
-  IndexSpec *sp = StrongRef_Get(spec_ref);
-  if (!sp) {
-    status = FGC_SPEC_DELETED;
-    goto cleanup;
-  }
-
-  RedisSearchCtx sctx_ = SEARCH_CTX_STATIC(gc->ctx, sp);
-  RedisSearchCtx *sctx = &sctx_;
-
-  RedisSearchCtx_LockSpecWrite(sctx);
-
-  InvertedIndex *idx = Redis_OpenInvertedIndexEx(sctx, term, len, 1, NULL, &idxKey);
-
-  if (idx == NULL) {
-    status = FGC_PARENT_ERROR;
-    goto cleanup;
-  }
-
-  FGC_applyInvertedIndex(gc, &idxbufs, &info, idx);
-
-  if (idx->numDocs == 0) {
-
-    // inverted index was cleaned entirely lets free it
-    RedisModuleString *termKey = fmtRedisTermKey(sctx, term, len);
-    size_t formatedTremLen;
-    const char *formatedTrem = RedisModule_StringPtrLen(termKey, &formatedTremLen);
-    if (sctx->spec->keysDict) {
-      // get memory before deleting the inverted index
-      size_t inv_idx_size = InvertedIndex_MemUsage(idx);
-      if (dictDelete(sctx->spec->keysDict, termKey) == DICT_OK) {
-        info.nbytesCollected += inv_idx_size;
-      }
-    }
-    if (!Trie_Delete(sctx->spec->terms, term, len)) {
-      RedisModule_Log(sctx->redisCtx, "warning", "RedisSearch fork GC: deleting the term '%s' from"
-                      " trie in index '%s' failed", term, sctx->spec->name);
-    }
-    sctx->spec->stats.numTerms--;
-    sctx->spec->stats.termsSize -= len;
-    RedisModule_FreeString(sctx->redisCtx, termKey);
-    if (sctx->spec->suffix) {
-      deleteSuffixTrie(sctx->spec->suffix, term, len);
-    }
-  }
-
-  FGC_updateStats(gc, sctx, info.nentriesCollected, info.nbytesCollected, info.nbytesAdded);
-
-cleanup:
-
-  if (idxKey) {
-    RedisModule_CloseKey(idxKey);
-  }
-  if (sp) {
-    RedisSearchCtx_UnlockSpec(sctx);
-    StrongRef_Release(spec_ref);
-  }
-  rm_free(term);
-  if (status != FGC_COLLECTED) {
-    freeInvIdx(&idxbufs, &info);
-  } else {
-    rm_free(idxbufs.changedBlocks);
-  }
-  return status;
-}
-
 typedef struct {
   // Node in the tree that was GC'd
   NumericRangeNode *node;
@@ -945,6 +860,92 @@ static void applyNumIdx(ForkGC *gc, RedisSearchCtx *sctx, NumGcInfo *ninfo) {
   FGC_updateStats(gc, sctx, info->nentriesCollected, info->nbytesCollected, info->nbytesAdded);
 
   resetCardinality(ninfo, currNode);
+}
+
+static FGCError FGC_parentHandleTerms(ForkGC *gc) {
+  FGCError status = FGC_COLLECTED;
+  size_t len;
+  char *term = NULL;
+  if (FGC_recvBuffer(gc, (void **)&term, &len) != REDISMODULE_OK) {
+    return FGC_CHILD_ERROR;
+  }
+  RedisModuleKey *idxKey = NULL;
+
+  if (term == RECV_BUFFER_EMPTY) {
+    return FGC_DONE;
+  }
+
+  InvIdxBuffers idxbufs = {0};
+  MSG_IndexInfo info = {0};
+  if (FGC_recvInvIdx(gc, &idxbufs, &info) != REDISMODULE_OK) {
+    rm_free(term);
+    return FGC_CHILD_ERROR;
+  }
+
+  StrongRef spec_ref = WeakRef_Promote(gc->index);
+  IndexSpec *sp = StrongRef_Get(spec_ref);
+  if (!sp) {
+    status = FGC_SPEC_DELETED;
+    goto cleanup;
+  }
+
+  RedisSearchCtx sctx_ = SEARCH_CTX_STATIC(gc->ctx, sp);
+  RedisSearchCtx *sctx = &sctx_;
+
+  RedisSearchCtx_LockSpecWrite(sctx);
+
+  InvertedIndex *idx = Redis_OpenInvertedIndexEx(sctx, term, len, 1, NULL, &idxKey);
+
+  if (idx == NULL) {
+    status = FGC_PARENT_ERROR;
+    goto cleanup;
+  }
+
+  FGC_applyInvertedIndex(gc, &idxbufs, &info, idx);
+
+  if (idx->numDocs == 0) {
+
+    // inverted index was cleaned entirely lets free it
+    RedisModuleString *termKey = fmtRedisTermKey(sctx, term, len);
+    size_t formatedTremLen;
+    const char *formatedTrem = RedisModule_StringPtrLen(termKey, &formatedTremLen);
+    if (sctx->spec->keysDict) {
+      // get memory before deleting the inverted index
+      size_t inv_idx_size = InvertedIndex_MemUsage(idx);
+      if (dictDelete(sctx->spec->keysDict, termKey) == DICT_OK) {
+        info.nbytesCollected += inv_idx_size;
+      }
+    }
+    if (!Trie_Delete(sctx->spec->terms, term, len)) {
+      RedisModule_Log(sctx->redisCtx, "warning", "RedisSearch fork GC: deleting the term '%s' from"
+                      " trie in index '%s' failed", term, sctx->spec->name);
+    }
+    sctx->spec->stats.numTerms--;
+    sctx->spec->stats.termsSize -= len;
+    RedisModule_FreeString(sctx->redisCtx, termKey);
+    if (sctx->spec->suffix) {
+      deleteSuffixTrie(sctx->spec->suffix, term, len);
+    }
+  }
+
+  FGC_updateStats(gc, sctx, info.nentriesCollected, info.nbytesCollected, info.nbytesAdded);
+
+cleanup:
+
+  if (idxKey) {
+    RedisModule_CloseKey(idxKey);
+  }
+  if (sp) {
+    RedisSearchCtx_UnlockSpec(sctx);
+    StrongRef_Release(spec_ref);
+  }
+  rm_free(term);
+  if (status != FGC_COLLECTED) {
+    freeInvIdx(&idxbufs, &info);
+  } else {
+    rm_free(idxbufs.changedBlocks);
+  }
+  return status;
 }
 
 static FGCError FGC_parentHandleNumeric(ForkGC *gc) {
@@ -1201,8 +1202,6 @@ cleanup:
 static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
   FGCError status = FGC_COLLECTED;
 
-  InvIdxBuffers idxbufs = {0};
-  MSG_IndexInfo info = {0};
   size_t fieldNameLen;
   char *fieldName = NULL;
 
@@ -1210,7 +1209,15 @@ static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
     return FGC_CHILD_ERROR;
   }
 
+  if (fieldName == RECV_BUFFER_EMPTY) {
+    return FGC_DONE;
+  }
+
+  InvIdxBuffers idxbufs = {0};
+  MSG_IndexInfo info = {0};
   if (FGC_recvInvIdx(gc, &idxbufs, &info) != REDISMODULE_OK) {
+    // TODO: Remove this once the fieldName is removed..
+    rm_free(fieldName);
     return FGC_CHILD_ERROR;
   }
 
@@ -1237,11 +1244,10 @@ static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
   // }
 
 cleanup:
-
-  if (sp) {
-    RedisSearchCtx_UnlockSpec(sctx);
-    StrongRef_Release(spec_ref);
-  }
+  // if (sp) {
+  RedisSearchCtx_UnlockSpec(sctx);
+  StrongRef_Release(spec_ref);
+  // }
   if (status != FGC_COLLECTED)  {
     freeInvIdx(&idxbufs, &info);
   } else {

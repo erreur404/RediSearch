@@ -12,10 +12,12 @@ void printReadIt(RedisModule_Reply *reply, IndexIterator *root, size_t counter, 
 
   RedisModule_Reply_Map(reply);
 
+  // TODO: Needs to be updated. We have the DocIdsOnly encoder/decoder for missing/existingDocs invertedIndexes as well.
   if (ir->idx->flags == Index_DocIdsOnly) {
-    // TODO: Needs to be updated.
-    printProfileType("TAG");
-    REPLY_KVSTR_SAFE("Term", ir->record->term.term->str);
+    if (ir->record->term.term != NULL) {
+      printProfileType("TAG");
+      REPLY_KVSTR_SAFE("Term", ir->record->term.term->str);
+    }
   } else if (ir->idx->flags & Index_StoreNumeric) {
     NumericFilter *flt = ir->decoderCtx.ptr;
     if (!flt || flt->geoFilter == NULL) {
