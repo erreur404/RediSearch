@@ -481,17 +481,12 @@ static void QueryNode_Expand(RSQueryTokenExpander expander, RSQueryExpanderCtx *
 IndexIterator *Query_EvalTokenNode(QueryEvalCtx *q, QueryNode *qn) {
   RS_LOG_ASSERT(qn->type == QN_TOKEN, "query node type should be token")
 
-  // if there's only one word in the query and no special field filtering,
-  // and we are not paging beyond MAX_SCOREINDEX_SIZE
-  // we can just use the optimized score index
-  int isSingleWord = q->numTokens == 1 && q->opts->fieldmask == RS_FIELDMASK_ALL;
-
   const FieldSpec *fs = IndexSpec_GetFieldByBit(q->sctx->spec, qn->opts.fieldMask);
   RSQueryTerm *term = NewQueryTerm(&qn->tn, q->tokenId++);
 
   // printf("Opening reader.. `%s` FieldMask: %llx\n", term->str, EFFECTIVE_FIELDMASK(q, qn));
 
-  IndexReader *ir = Redis_OpenReader(q->sctx, term, q->docTable, isSingleWord,
+  IndexReader *ir = Redis_OpenReader(q->sctx, term, q->docTable,
                                      EFFECTIVE_FIELDMASK(q, qn), q->conc, qn->opts.weight);
   if (ir == NULL) {
     Term_Free(term);
@@ -514,7 +509,7 @@ static inline void addTerm(char *str, size_t tok_len, QueryEvalCtx *q,
   RSQueryTerm *term = NewQueryTerm(&tok, q->tokenId++);
 
   // Open an index reader
-  IndexReader *ir = Redis_OpenReader(q->sctx, term, &q->sctx->spec->docs, 0,
+  IndexReader *ir = Redis_OpenReader(q->sctx, term, &q->sctx->spec->docs,
                                      q->opts->fieldmask & opts->fieldMask, q->conc, 1);
 
   if (!ir) {
@@ -754,7 +749,7 @@ static int runeIterCb(const rune *r, size_t n, void *p, void *payload) {
   RSToken tok = {0};
   tok.str = runesToStr(r, n, &tok.len);
   RSQueryTerm *term = NewQueryTerm(&tok, ctx->q->tokenId++);
-  IndexReader *ir = Redis_OpenReader(q->sctx, term, &q->sctx->spec->docs, 0,
+  IndexReader *ir = Redis_OpenReader(q->sctx, term, &q->sctx->spec->docs,
                                      q->opts->fieldmask & ctx->opts->fieldMask, q->conc, 1);
   rm_free(tok.str);
   if (!ir) {
@@ -774,7 +769,7 @@ static int charIterCb(const char *s, size_t n, void *p, void *payload) {
   }
   RSToken tok = {.str = (char *)s, .len = n};
   RSQueryTerm *term = NewQueryTerm(&tok, q->tokenId++);
-  IndexReader *ir = Redis_OpenReader(q->sctx, term, &q->sctx->spec->docs, 0,
+  IndexReader *ir = Redis_OpenReader(q->sctx, term, &q->sctx->spec->docs,
                                      q->opts->fieldmask & ctx->opts->fieldMask, q->conc, 1);
   if (!ir) {
     Term_Free(term);

@@ -1238,6 +1238,7 @@ static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
   FGC_applyInvertedIndex(gc, &idxbufs, &info, idx);
   FGC_updateStats(gc, sctx, info.nentriesCollected, info.nbytesCollected, info.nbytesAdded);
 
+  // TODO: Free this inverted index in it was cleaned entirely.
   // if (idx->numDocs == 0) {
   //   // inverted index was cleaned entirely lets free it
     

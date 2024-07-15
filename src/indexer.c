@@ -313,6 +313,8 @@ static void writeExistingDocs(RSAddDocumentCtx *aCtx, RedisSearchCtx *sctx) {
     return;
   }
   // RS_LOG_ASSERT(iiExistingDocs != NULL, "existingDocs should not be NULL");
+  // TODO: Let's create the inverted index here and not in the index creation, as we do for other cases.
+  // In this manner, we won't have a non-empty inverted index when there are no docs (this fails a lot of tests).
   t_docId docId = aCtx->doc->docId;
   IndexEncoder enc = InvertedIndex_GetEncoder(Index_DocIdsOnly);
   RSIndexResult rec = {.type = RSResultType_Virtual, .docId = docId, .offsetsSz = 0, .freq = 0};
