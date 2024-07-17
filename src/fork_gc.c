@@ -51,10 +51,6 @@ static void FGC_updateStats(ForkGC *gc, RedisSearchCtx *sctx,
 }
 
 static void FGC_sendFixed(ForkGC *fgc, const void *buff, size_t len) {
-  if (len == 0) {
-    // Empty message -> Do not write anything.
-    return;
-  }
   ssize_t size = write(fgc->pipefd[GC_WRITERFD], buff, len);
   if (size != len) {
     perror("broken pipe, exiting GC fork: write() failed");
@@ -544,8 +540,7 @@ static void FGC_childCollectexistingDocs(ForkGC *gc, RedisSearchCtx *sctx) {
 
   InvertedIndex *idx = spec->existingDocs;
   if (idx) {
-    // TODO: Remove this redundant header sending (sent later in `headerCallback`)
-    struct iovec iov = {.iov_base = (void *)"tmp", strlen("tmp")};
+    struct iovec iov = {.iov_base = (void *)"nonEmpty", strlen("nonEmpty")};
     FGC_childRepairInvidx(gc, sctx, idx, sendHeaderString, &iov, NULL);
   }
 
@@ -1202,22 +1197,21 @@ cleanup:
 static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
   FGCError status = FGC_COLLECTED;
 
-  size_t fieldNameLen;
-  char *fieldName = NULL;
+  size_t ei_len;
+  char *empty_indicator = NULL;
 
-  if (FGC_recvBuffer(gc, (void **)&fieldName, &fieldNameLen) != REDISMODULE_OK) {
+  if (FGC_recvBuffer(gc, (void **)&empty_indicator, &ei_len) != REDISMODULE_OK) {
     return FGC_CHILD_ERROR;
   }
 
-  if (fieldName == RECV_BUFFER_EMPTY) {
+  if (empty_indicator == RECV_BUFFER_EMPTY) {
     return FGC_DONE;
   }
 
   InvIdxBuffers idxbufs = {0};
   MSG_IndexInfo info = {0};
   if (FGC_recvInvIdx(gc, &idxbufs, &info) != REDISMODULE_OK) {
-    // TODO: Remove this once the fieldName is removed..
-    rm_free(fieldName);
+    rm_free(empty_indicator);
     return FGC_CHILD_ERROR;
   }
 

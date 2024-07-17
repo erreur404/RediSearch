@@ -1099,11 +1099,10 @@ static t_docId NI_LastDocId(void *ctx) {
   return nc->lastDocId;
 }
 
-IndexIterator *NewNotIterator(IndexSpec *spec, IndexIterator *it, t_docId maxDocId, double weight, struct timespec timeout) {
+IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId, double weight, struct timespec timeout) {
   NotContext *nc = rm_malloc(sizeof(*nc));
   nc->base.current = NewVirtualResult(weight, RS_FIELDMASK_ALL);
   nc->base.current->docId = 0;
-  // nc->base = *NewWildcardIterator(spec);
   nc->child = it ? it : NewEmptyIterator();
   nc->lastDocId = 0;
   nc->maxDocId = maxDocId;
@@ -1396,11 +1395,16 @@ static size_t WI_NumEstimated(void *p) {
   return ctx->numDocs;
 }
 
-// Returns a new wildcard iterator. Assumes that the inverted index exists (i.e., not NULL).
+// Returns a new wildcard iterator.
 IndexIterator *NewWildcardIterator(IndexSpec *spec) {
-  IndexReader *ir = NewGenericIndexReader(spec->existingDocs, spec, 1, 1);
-  IndexIterator *ret = NewReadIterator(ir);
-  ret->type = WILDCARD_ITERATOR;
+  IndexIterator *ret;
+  if (spec->existingDocs) {
+    IndexReader *ir = NewGenericIndexReader(spec->existingDocs, spec, 1, 1);
+    ret = NewReadIterator(ir);
+    ret->type = WILDCARD_ITERATOR;
+  } else {
+    ret = NewEmptyIterator();
+  }
   return ret;
 }
 

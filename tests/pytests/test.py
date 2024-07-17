@@ -3359,7 +3359,7 @@ def testIssue1184(env):
         env.expect('FT.CREATE idx ON HASH SCHEMA field ' + ft).ok()
 
         d = index_info(env, 'idx')
-        # env.assertEqual(d['inverted_sz_mb'], '0')
+        env.assertEqual(d['inverted_sz_mb'], '0')
         env.assertEqual(d['num_records'], 0)
 
         if ft == 'NUMERIC':
@@ -3385,7 +3385,7 @@ def testIssue1184(env):
         forceInvokeGC(env, 'idx')
 
         d = index_info(env, 'idx')
-        # env.assertEqual(float(d['inverted_sz_mb']), 0)
+        env.assertEqual(float(d['inverted_sz_mb']), 0)
         env.assertEqual(int(d['num_records']), 0)
         env.assertEqual(int(d['num_docs']), 0)
 
