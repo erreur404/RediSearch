@@ -22,17 +22,16 @@ def test_existing_GC():
     env.expect('FT.DEBUG', 'GC_STOP_SCHEDULE', 'idx').ok()
 
     # Delete docs with 'missing values'
-    for i in range(n_docs):
+    for i in range(2 * n_docs):
         conn.execute_command('DEL', f'doc{2 * i + 1}')
 
     # Run GC, and wait for it to finish
     env.expect('FT.DEBUG', 'GC_FORCEINVOKE', 'idx').equal('DONE')
-    env.expect('FT.DEBUG', 'GC_WAIT_FOR_JOBS').equal('DONE')
 
     # Make sure we have updated the index, by searching for the docs, and
     # verifying that `bytes_collected` > 0
     res = env.cmd('FT.SEARCH', 'idx', '*', 'LIMIT', '0', '0')
-    env.assertEqual(res, [1005])
+    env.assertEqual(res, [2010])
 
     res = env.cmd('FT.INFO', 'idx')
     gc_sec = res[res.index('gc_stats') + 1]
@@ -41,3 +40,4 @@ def test_existing_GC():
 
     # Reschedule the gc - add a job to the queue
     env.cmd('FT.DEBUG', 'GC_CONTINUE_SCHEDULE', 'idx')
+    env.expect('FT.DEBUG', 'GC_WAIT_FOR_JOBS').equal('DONE')
