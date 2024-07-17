@@ -870,7 +870,8 @@ static IndexIterator *Query_EvalWildcardNode(QueryEvalCtx *q, QueryNode *qn) {
   RS_LOG_ASSERT(qn->type == QN_WILDCARD, "query node type should be wildcard");
   RS_LOG_ASSERT(q->docTable, "DocTable is NULL");
 
-  return NewWildcardIterator(q->sctx->spec);
+  bool optimized = true; // TODO: Take value from index.
+  return NewWildcardIterator(q->sctx->spec, optimized, q);
 }
 
 static IndexIterator *Query_EvalNotNode(QueryEvalCtx *q, QueryNode *qn) {

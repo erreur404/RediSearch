@@ -924,8 +924,9 @@ static size_t II_Len(void *ctx) {
   return ((IntersectIterator *)ctx)->len;
 }
 
-/* A Not iterator works by wrapping another iterator, and returning OK for misses, and NOTFOUND
- * for hits */
+/* A Not iterator works by wrapping another iterator, and returning OK for
+ * misses, and NOTFOUND for hits. It takes its reference from a wildcard iterator
+ * if `INDEXALL` is on (optimization). */
 typedef struct {
   IndexIterator base;
   IndexIterator *child;
@@ -1305,17 +1306,129 @@ IndexIterator *NewOptionalIterator(IndexIterator *it, t_docId maxDocId, double w
   return ret;
 }
 
-// Returns a new wildcard iterator.
-IndexIterator *NewWildcardIterator(IndexSpec *spec) {
-  IndexIterator *ret;
-  if (spec->existingDocs) {
-    IndexReader *ir = NewGenericIndexReader(spec->existingDocs, spec, 1, 1);
-    ret = NewReadIterator(ir);
-    ret->type = WILDCARD_ITERATOR;
-  } else {
-    ret = NewEmptyIterator();
+typedef struct {
+  IndexIterator base;
+  t_docId topId;
+  t_docId current;
+  t_docId numDocs;
+} WildcardIterator, WildcardIteratorCtx;
+
+/* Free a wildcard iterator */
+static void WI_Free(IndexIterator *it) {
+
+  WildcardIteratorCtx *nc = it->ctx;
+  IndexResult_Free(CURRENT_RECORD(nc));
+  rm_free(it);
+}
+
+/* Read reads the next consecutive id, unless we're at the end */
+static int WI_Read(void *ctx, RSIndexResult **hit) {
+  WildcardIteratorCtx *nc = ctx;
+  CURRENT_RECORD(nc)->docId = ++nc->current;
+  if (nc->current > nc->topId) {
+    return INDEXREAD_EOF;
   }
+  if (hit) {
+    *hit = CURRENT_RECORD(nc);
+  }
+  return INDEXREAD_OK;
+}
+
+/* Skipto for wildcard iterator - always succeeds, but this should normally not happen as it has
+ * no
+ * meaning */
+static int WI_SkipTo(void *ctx, t_docId docId, RSIndexResult **hit) {
+  // printf("WI_Skipto %d\n", docId);
+  WildcardIteratorCtx *nc = ctx;
+
+  if (nc->current > nc->topId) return INDEXREAD_EOF;
+
+  if (docId == 0) return WI_Read(ctx, hit);
+
+  nc->current = docId;
+  CURRENT_RECORD(nc)->docId = docId;
+  if (hit) {
+    *hit = CURRENT_RECORD(nc);
+  }
+  return INDEXREAD_OK;
+}
+
+static void WI_Abort(void *ctx) {
+  WildcardIteratorCtx *nc = ctx;
+  nc->current = nc->topId + 1;
+}
+
+/* We always have next, in case anyone asks... ;) */
+static int WI_HasNext(void *ctx) {
+  WildcardIteratorCtx *nc = ctx;
+
+  return nc->current <= nc->topId;
+}
+
+/* Our len is the len of the index... */
+static size_t WI_Len(void *ctx) {
+  WildcardIteratorCtx *nc = ctx;
+  return nc->topId;
+}
+
+/* Last docId */
+static t_docId WI_LastDocId(void *ctx) {
+  WildcardIteratorCtx *nc = ctx;
+
+  return nc->current;
+}
+
+static void WI_Rewind(void *p) {
+  WildcardIteratorCtx *ctx = p;
+  ctx->current = 0;
+}
+
+static size_t WI_NumEstimated(void *p) {
+  WildcardIteratorCtx *ctx = p;
+  return ctx->numDocs;
+}
+
+/* Create a new wildcard iterator */
+static IndexIterator *NewWildcardIterator_NonOptimized(t_docId maxId, size_t numDocs) {
+  WildcardIteratorCtx *c = rm_calloc(1, sizeof(*c));
+  c->current = 0;
+  c->topId = maxId;
+  c->numDocs = numDocs;
+
+  CURRENT_RECORD(c) = NewVirtualResult(1, RS_FIELDMASK_ALL);
+  CURRENT_RECORD(c)->freq = 1;
+
+  IndexIterator *ret = &c->base;
+  ret->ctx = c;
+  ret->type = WILDCARD_ITERATOR;
+  ret->Free = WI_Free;
+  ret->HasNext = WI_HasNext;
+  ret->LastDocId = WI_LastDocId;
+  ret->Len = WI_Len;
+  ret->Read = WI_Read;
+  ret->SkipTo = WI_SkipTo;
+  ret->Abort = WI_Abort;
+  ret->Rewind = WI_Rewind;
+  ret->NumEstimated = WI_NumEstimated;
   return ret;
+}
+
+// Returns a new wildcard iterator.
+IndexIterator *NewWildcardIterator(IndexSpec *spec, bool optimized, QueryEvalCtx *q) {
+  IndexIterator *ret;
+  if (optimized) {
+    if (spec->existingDocs) {
+      IndexReader *ir = NewGenericIndexReader(spec->existingDocs, spec, 1, 1);
+      ret = NewReadIterator(ir);
+      ret->type = WILDCARD_ITERATOR;
+    } else {
+      ret = NewEmptyIterator();
+    }
+    return ret;
+  }
+
+  // Non-optimized wildcard iterator, using a simple doc-id increment as its base.
+  return NewWildcardIterator_NonOptimized(q->docTable->maxDocId, q->docTable->size);
 }
 
 static int EOI_Read(void *p, RSIndexResult **e) {

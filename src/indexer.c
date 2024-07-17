@@ -308,6 +308,13 @@ static void writeMissingFieldDocs(RSAddDocumentCtx *aCtx, RedisSearchCtx *sctx) 
 
 // Index the doc in the existing docs inverted index
 static void writeExistingDocs(RSAddDocumentCtx *aCtx, RedisSearchCtx *sctx) {
+  // TODO: Add this condition, such that we will have both optimized and
+  // non-optimized modes available. This configuration will be available in
+  // indexing time only, i.e., will not be configurable at "runtime".
+  bool optimized = true; // TODO: Take value from index.
+  if (!optimized) {
+    return;
+  }
   if (!sctx->spec->existingDocs) {
     // Create the inverted index if it doesn't exist
     size_t index_size;

@@ -16,6 +16,7 @@
 #include "varint.h"
 #include "query_node.h"
 #include "reply.h"
+#include "query_ctx.h"
 
 #include "util/logging.h"
 
@@ -74,7 +75,7 @@ IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId, double weight
 IndexIterator *NewOptionalIterator(IndexIterator *it, t_docId maxDocId, double weight);
 
 /* Create a wildcard iterator, to iterate all the existing docs in the*/
-IndexIterator *NewWildcardIterator(IndexSpec *spec);
+IndexIterator *NewWildcardIterator(IndexSpec *spec, bool optimized, QueryEvalCtx *q);
 
 /* Create a new IdListIterator from a pre populated list of document ids of size num. The doc ids
  * are sorted in this function, so there is no need to sort them. They are automatically freed in
