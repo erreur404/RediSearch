@@ -73,7 +73,7 @@ IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId, double weight
  * always returns OK on skips, but a virtual hit with frequency of 0 if there is no hit */
 IndexIterator *NewOptionalIterator(IndexIterator *it, t_docId maxDocId, double weight);
 
-/* Create a wildcard iterator, to iterate all the existing docs in the database.*/
+/* Create a wildcard iterator, to iterate all the existing docs in the*/
 IndexIterator *NewWildcardIterator(IndexSpec *spec);
 
 /* Create a new IdListIterator from a pre populated list of document ids of size num. The doc ids
@@ -83,9 +83,6 @@ IndexIterator *NewIdListIterator(t_docId *ids, t_offset num, double weight);
 
 /** Create a new iterator which returns no results */
 IndexIterator *NewEmptyIterator(void);
-
-/** Return a string containing the type of the iterator */
-const char *IndexIterator_GetTypeString(const IndexIterator *it);
 
 /** Add Profile iterator layer between iterators */
 void Profile_AddIters(IndexIterator **root);
