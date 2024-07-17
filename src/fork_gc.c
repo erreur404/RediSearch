@@ -1238,17 +1238,15 @@ static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
   FGC_applyInvertedIndex(gc, &idxbufs, &info, idx);
   FGC_updateStats(gc, sctx, info.nentriesCollected, info.nbytesCollected, info.nbytesAdded);
 
-  // TODO: Free this inverted index in it was cleaned entirely.
-  // if (idx->numDocs == 0) {
-  //   // inverted index was cleaned entirely lets free it
-    
-  // }
+  if (idx->numDocs == 0) {
+    // inverted index was cleaned entirely, let's free it
+    InvertedIndex_Free(idx);
+    sp->existingDocs = NULL;
+  }
 
 cleanup:
-  // if (sp) {
   RedisSearchCtx_UnlockSpec(sctx);
   StrongRef_Release(spec_ref);
-  // }
   if (status != FGC_COLLECTED)  {
     freeInvIdx(&idxbufs, &info);
   } else {

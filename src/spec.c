@@ -414,11 +414,6 @@ IndexSpec *IndexSpec_CreateNew(RedisModuleCtx *ctx, RedisModuleString **argv, in
     IndexSpec_SetTimeoutTimer(sp, StrongRef_Demote(spec_ref));
   }
 
-  // Create the existing docs inverted index
-  size_t index_size;
-  sp->existingDocs = NewInvertedIndex(Index_DocIdsOnly, 1, &index_size);
-  sp->stats.invertedSize += index_size;
-
   if (!(sp->flags & Index_SkipInitialScan)) {
     IndexSpec_ScanAndReindex(ctx, spec_ref);
   }

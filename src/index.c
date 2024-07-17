@@ -1099,10 +1099,11 @@ static t_docId NI_LastDocId(void *ctx) {
   return nc->lastDocId;
 }
 
-IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId, double weight, struct timespec timeout) {
+IndexIterator *NewNotIterator(IndexSpec *spec, IndexIterator *it, t_docId maxDocId, double weight, struct timespec timeout) {
   NotContext *nc = rm_malloc(sizeof(*nc));
   nc->base.current = NewVirtualResult(weight, RS_FIELDMASK_ALL);
   nc->base.current->docId = 0;
+  // nc->base = *NewWildcardIterator(spec);
   nc->child = it ? it : NewEmptyIterator();
   nc->lastDocId = 0;
   nc->maxDocId = maxDocId;
@@ -1395,30 +1396,38 @@ static size_t WI_NumEstimated(void *p) {
   return ctx->numDocs;
 }
 
-/* Create a new wildcard iterator */
-IndexIterator *NewWildcardIterator(t_docId maxId, size_t numDocs) {
-  WildcardIteratorCtx *c = rm_calloc(1, sizeof(*c));
-  c->current = 0;
-  c->topId = maxId;
-  c->numDocs = numDocs;
-
-  CURRENT_RECORD(c) = NewVirtualResult(1, RS_FIELDMASK_ALL);
-  CURRENT_RECORD(c)->freq = 1;
-
-  IndexIterator *ret = &c->base;
-  ret->ctx = c;
+// Returns a new wildcard iterator. Assumes that the inverted index exists (i.e., not NULL).
+IndexIterator *NewWildcardIterator(IndexSpec *spec) {
+  IndexReader *ir = NewGenericIndexReader(spec->existingDocs, spec, 1, 1);
+  IndexIterator *ret = NewReadIterator(ir);
   ret->type = WILDCARD_ITERATOR;
-  ret->Free = WI_Free;
-  ret->HasNext = WI_HasNext;
-  ret->LastDocId = WI_LastDocId;
-  ret->Len = WI_Len;
-  ret->Read = WI_Read;
-  ret->SkipTo = WI_SkipTo;
-  ret->Abort = WI_Abort;
-  ret->Rewind = WI_Rewind;
-  ret->NumEstimated = WI_NumEstimated;
   return ret;
 }
+
+// /* Create a new wildcard iterator */
+// IndexIterator *NewWildcardIterator(t_docId maxId, size_t numDocs) {
+//   WildcardIteratorCtx *c = rm_calloc(1, sizeof(*c));
+//   c->current = 0;
+//   c->topId = maxId;
+//   c->numDocs = numDocs;
+
+//   CURRENT_RECORD(c) = NewVirtualResult(1, RS_FIELDMASK_ALL);
+//   CURRENT_RECORD(c)->freq = 1;
+
+//   IndexIterator *ret = &c->base;
+//   ret->ctx = c;
+//   ret->type = WILDCARD_ITERATOR;
+//   ret->Free = WI_Free;
+//   ret->HasNext = WI_HasNext;
+//   ret->LastDocId = WI_LastDocId;
+//   ret->Len = WI_Len;
+//   ret->Read = WI_Read;
+//   ret->SkipTo = WI_SkipTo;
+//   ret->Abort = WI_Abort;
+//   ret->Rewind = WI_Rewind;
+//   ret->NumEstimated = WI_NumEstimated;
+//   return ret;
+// }
 
 static int EOI_Read(void *p, RSIndexResult **e) {
   return INDEXREAD_EOF;

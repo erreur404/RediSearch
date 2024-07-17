@@ -871,21 +871,17 @@ static IndexIterator *Query_EvalWildcardNode(QueryEvalCtx *q, QueryNode *qn) {
   RS_LOG_ASSERT(q->docTable, "DocTable is NULL");
 
   if (q->sctx->spec->existingDocs) {
-    IndexReader *ir = NewGenericIndexReader(q->sctx->spec->existingDocs, q->sctx->spec, 1, 1);
-    IndexIterator *ret = NewReadIterator(ir);
-    ret->type = WILDCARD_ITERATOR;
-    return ret;
+    return NewWildcardIterator(q->sctx->spec);
   }
 
   // The inverted index for the existing docs does not exist (mind the irony..)
-  // TODO: Is this valid? When?
   return NewEmptyIterator();
 }
 
 static IndexIterator *Query_EvalNotNode(QueryEvalCtx *q, QueryNode *qn) {
   RS_LOG_ASSERT(qn->type == QN_NOT, "query node type should be not")
 
-  return NewNotIterator(QueryNode_NumChildren(qn) ? Query_EvalNode(q, qn->children[0]) : NULL,
+  return NewNotIterator(q->sctx->spec, (qn) ? Query_EvalNode(q, qn->children[0]) : NULL,
                         q->docTable->maxDocId, qn->opts.weight, q->sctx->timeout);
 }
 

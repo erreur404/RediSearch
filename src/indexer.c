@@ -308,17 +308,17 @@ static void writeMissingFieldDocs(RSAddDocumentCtx *aCtx, RedisSearchCtx *sctx) 
 
 // Index the doc in the existing docs inverted index
 static void writeExistingDocs(RSAddDocumentCtx *aCtx, RedisSearchCtx *sctx) {
-  InvertedIndex *iiExistingDocs = sctx->spec->existingDocs;
-  if (!iiExistingDocs) {
-    return;
+  if (!sctx->spec->existingDocs) {
+    // Create the inverted index if it doesn't exist
+    size_t index_size;
+    aCtx->spec->existingDocs = NewInvertedIndex(Index_DocIdsOnly, 1, &index_size);
+    // aCtx->spec->stats.invertedSize += index_size;
   }
-  // RS_LOG_ASSERT(iiExistingDocs != NULL, "existingDocs should not be NULL");
-  // TODO: Let's create the inverted index here and not in the index creation, as we do for other cases.
-  // In this manner, we won't have a non-empty inverted index when there are no docs (this fails a lot of tests).
+
   t_docId docId = aCtx->doc->docId;
   IndexEncoder enc = InvertedIndex_GetEncoder(Index_DocIdsOnly);
   RSIndexResult rec = {.type = RSResultType_Virtual, .docId = docId, .offsetsSz = 0, .freq = 0};
-  aCtx->spec->stats.invertedSize += InvertedIndex_WriteEntryGeneric(iiExistingDocs, enc, docId, &rec);
+  aCtx->spec->stats.invertedSize += InvertedIndex_WriteEntryGeneric(sctx->spec->existingDocs, enc, docId, &rec);
 }
 
 /**
