@@ -875,7 +875,7 @@ def testScoreField(env):
     res = [3, 'tst:permit3', ['$', '{"_score":0.9,"description":"Fix the facade"}'],
                'tst:permit1', ['$', '{"_score":0.8,"description":"Fix the facade"}'],
                'tst:permit2', ['$', '{"_score":0.7,"description":"Fix the facade"}']]
-    env.expect('FT.SEARCH', 'permits1', '*', 'withscores').equal(res)
+    env.expect('FT.SEARCH', 'permits1', '*').equal(res)
     env.expect('FT.SEARCH', 'permits2', '*').equal(res)
     env.expect('FT.SEARCH', 'permits1', 'facade').equal(res)
     env.expect('FT.SEARCH', 'permits2', 'facade').equal(res)

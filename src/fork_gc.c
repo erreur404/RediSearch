@@ -1230,10 +1230,13 @@ static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
   InvertedIndex *idx = sp->existingDocs;
 
   FGC_applyInvertedIndex(gc, &idxbufs, &info, idx);
-  FGC_updateStats(gc, sctx, info.nentriesCollected, info.nbytesCollected, info.nbytesAdded);
+  // We don't count the records that we removed, because we also don't count
+  // their addition (they are duplications so we have no such desire).
+  FGC_updateStats(gc, sctx, 0, info.nbytesCollected, info.nbytesAdded);
 
   if (idx->numDocs == 0) {
     // inverted index was cleaned entirely, let's free it
+    // TODO: Count this memory as well!
     InvertedIndex_Free(idx);
     sp->existingDocs = NULL;
   }

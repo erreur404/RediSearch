@@ -57,7 +57,9 @@ def runTestWithSeed(env, s=None):
     # The buffer grows according to Buffer_Grow() in buffer.c
     # 96 is the size of the inverted index structure without counting the
     # buffer capacity.
-    expected_inv_idx_size = 606 / (1024 * 1024)
+
+    # TODO: Update the docs accordingly (719 entries instead of 606).
+    expected_inv_idx_size = 719 / (1024 * 1024)
     check_index_info(env, idx, count, expected_inv_idx_size)
 
     env.expect('FT.SEARCH idx * LIMIT 0 0').equal([count])

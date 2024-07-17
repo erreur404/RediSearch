@@ -986,8 +986,7 @@ static int NI_SkipTo(void *ctx, t_docId docId, RSIndexResult **hit) {
 
   // If the child docId is the one we are looking for, it's an anti match!
   if (childId == docId) {
-    nc->base.current->docId = docId;
-    nc->lastDocId = docId;
+    nc->base.current->docId = nc->lastDocId = docId;
     *hit = nc->base.current;
     return INDEXREAD_NOTFOUND;
   }
@@ -1002,8 +1001,7 @@ static int NI_SkipTo(void *ctx, t_docId docId, RSIndexResult **hit) {
 
 ok:
   // NOT FOUND or end means OK. We need to set the docId on the hit we will bubble up
-  nc->base.current->docId = docId;
-  nc->lastDocId = docId;
+  nc->base.current->docId = nc->lastDocId = docId;
   *hit = nc->base.current;
   return INDEXREAD_OK;
 }
