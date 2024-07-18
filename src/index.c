@@ -1240,11 +1240,12 @@ static t_docId NI_LastDocId(void *ctx) {
 }
 
 IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId,
-  double weight, struct timespec timeout, bool optimized, QueryEvalCtx *q) {
+  double weight, struct timespec timeout, QueryEvalCtx *q) {
 
   NotContext *nc = rm_malloc(sizeof(*nc));
+  bool optimized = q && q->sctx->spec->rule->index_all;
   if (optimized) {
-    nc->wcii = NewWildcardIterator(q, true);
+    nc->wcii = NewWildcardIterator(q);
   }
   nc->cii.current = NewVirtualResult(weight, RS_FIELDMASK_ALL);
   nc->cii.current->docId = 0;
@@ -1561,9 +1562,9 @@ static IndexIterator *NewWildcardIterator_NonOptimized(t_docId maxId, size_t num
 }
 
 // Returns a new wildcard iterator.
-IndexIterator *NewWildcardIterator(QueryEvalCtx *q, bool optimized) {
+IndexIterator *NewWildcardIterator(QueryEvalCtx *q) {
   IndexIterator *ret;
-  if (optimized) {
+  if (q->sctx->spec->rule->index_all) {
     if (q->sctx->spec->existingDocs) {
       IndexReader *ir = NewGenericIndexReader(q->sctx->spec->existingDocs,
         q->sctx->spec, 1, 1);

@@ -126,6 +126,18 @@ SchemaRule *SchemaRule_Create(SchemaRuleArgs *args, StrongRef ref, QueryError *s
     }
   }
 
+  if (args->index_all) {
+    // Validate the arg (if it's not ENABLE or DISABLE -> throw an error)
+    if (!strcasecmp(args->index_all, "enable")) {
+      rule->index_all = true;
+    } else if (!strcasecmp(args->index_all, "disable")) {
+      rule->index_all = false;
+    } else {
+      QueryError_SetError(status, QUERY_EADDARGS, "Invalid argument for `INDEX_ALL`");
+      goto error;
+    }
+  }
+
   for (int i = 0; i < array_len(rule->prefixes); ++i) {
     SchemaPrefixes_Add(rule->prefixes[i], sdslen(rule->prefixes[i]), ref);
   }

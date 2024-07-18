@@ -311,8 +311,7 @@ static void writeExistingDocs(RSAddDocumentCtx *aCtx, RedisSearchCtx *sctx) {
   // TODO: Add this condition, such that we will have both optimized and
   // non-optimized modes available. This configuration will be available in
   // indexing time only, i.e., will not be configurable at "runtime".
-  bool optimized = true; // TODO: Take value from index.
-  if (!optimized) {
+  if (!sctx->spec->rule->index_all) {
     return;
   }
   if (!sctx->spec->existingDocs) {
