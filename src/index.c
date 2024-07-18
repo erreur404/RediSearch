@@ -1243,7 +1243,7 @@ IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId,
   double weight, struct timespec timeout, QueryEvalCtx *q) {
 
   NotContext *nc = rm_malloc(sizeof(*nc));
-  bool optimized = q && q->sctx->spec->rule->index_all;
+  bool optimized = q && q->sctx->spec->rule && q->sctx->spec->rule->index_all;
   if (optimized) {
     nc->wcii = NewWildcardIterator(q);
   }

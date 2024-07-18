@@ -101,7 +101,7 @@ struct DocumentIndexer;
       {.name = "PAYLOAD_FIELD",                                             \
        .target = &(rule)->payload_field,                                    \
        .len = &dummy2,                                                      \
-       .type = AC_ARGTYPE_STRING},                                          \ 
+       .type = AC_ARGTYPE_STRING},                                          \
       {.name = "INDEXALL",                                                  \
        .target = &(rule)->index_all,                                        \
        .len = &dummy2,                                                      \

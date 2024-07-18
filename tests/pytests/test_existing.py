@@ -7,7 +7,7 @@ def test_existing_GC():
     env = Env(moduleArgs="DEFAULT_DIALECT 2")
     conn = getConnectionByEnv(env)
 
-    env.expect('FT.CREATE', 'idx', 'SCHEMA', 't', 'TEXT', 'INDEXMISSING').ok()
+    env.expect('FT.CREATE', 'idx', 'INDEXALL', 'ENABLE', 'SCHEMA', 't', 'TEXT').ok()
     n_docs = 1005       # 5 more than the amount of entries in an index block
     fake = faker.Faker()
     for i in range(2 * n_docs):
