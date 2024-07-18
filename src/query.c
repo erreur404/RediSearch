@@ -871,14 +871,16 @@ static IndexIterator *Query_EvalWildcardNode(QueryEvalCtx *q, QueryNode *qn) {
   RS_LOG_ASSERT(q->docTable, "DocTable is NULL");
 
   bool optimized = true; // TODO: Take value from index.
-  return NewWildcardIterator(q->sctx->spec, optimized, q);
+  return NewWildcardIterator(q, optimized);
 }
 
 static IndexIterator *Query_EvalNotNode(QueryEvalCtx *q, QueryNode *qn) {
   RS_LOG_ASSERT(qn->type == QN_NOT, "query node type should be not")
 
+  bool optimized = true; // TODO: Take value from index.
   return NewNotIterator((qn) ? Query_EvalNode(q, qn->children[0]) : NULL,
-                        q->docTable->maxDocId, qn->opts.weight, q->sctx->timeout);
+                        q->docTable->maxDocId, qn->opts.weight, q->sctx->timeout,
+                        optimized, q);
 }
 
 static IndexIterator *Query_EvalOptionalNode(QueryEvalCtx *q, QueryNode *qn) {

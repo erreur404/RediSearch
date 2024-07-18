@@ -68,14 +68,15 @@ void AddIntersectIterator(IndexIterator *parentIter, IndexIterator *childIter);
 void trimUnionIterator(IndexIterator *iter, size_t offset, size_t limit, bool asc);
 
 /* Create a NOT iterator by wrapping another index iterator */
-IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId, double weight, struct timespec timeout);
+IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId,
+  double weight, struct timespec timeout, bool optimized, QueryEvalCtx *q);
 
 /* Create an Optional clause iterator by wrapping another index iterator. An optional iterator
  * always returns OK on skips, but a virtual hit with frequency of 0 if there is no hit */
 IndexIterator *NewOptionalIterator(IndexIterator *it, t_docId maxDocId, double weight);
 
 /* Create a wildcard iterator, to iterate all the existing docs in the*/
-IndexIterator *NewWildcardIterator(IndexSpec *spec, bool optimized, QueryEvalCtx *q);
+IndexIterator *NewWildcardIterator(QueryEvalCtx *q, bool optimized);
 
 /* Create a new IdListIterator from a pre populated list of document ids of size num. The doc ids
  * are sorted in this function, so there is no need to sort them. They are automatically freed in

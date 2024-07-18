@@ -1104,8 +1104,8 @@ int IR_SkipTo(void *ctx, t_docId docId, RSIndexResult **hit) {
   if (ir->decoders.seeker) {
     // // if needed - skip to the next block (skipping empty blocks that may appear here due to GC)
     while (BufferReader_AtEnd(&ir->br)) {
-      // We're at the end of the last block...
-      if (ir->currentBlock + 1 == ir->idx->size) {
+      if (ir->currentBlock == ir->idx->size - 1) {
+        // We're at the end of the last block...
         goto eof;
       }
       IndexReader_AdvanceBlock(ir);
