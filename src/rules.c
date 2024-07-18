@@ -475,6 +475,9 @@ void SchemaRule_RdbSave(SchemaRule *rule, RedisModuleIO *rdb) {
   }
   RedisModule_SaveDouble(rdb, rule->score_default);
   RedisModule_SaveUnsigned(rdb, rule->lang_default);
+  // TODO: Add support for rdb-save/load of index_all schema rule option.
+  // RedisModule_SaveUnsigned(rdb, 1);
+  // RedisModule_SaveUnsigned(rdb, rule->index_all);
 }
 
 bool SchemaRule_ShouldIndex(struct IndexSpec *sp, RedisModuleString *keyname, DocumentType type) {
