@@ -42,10 +42,12 @@ BRANCH=${BRANCH:-master}
 
 cd $ROOT/deps
 if [[ ! -d RedisJSON ]]; then
-	git clone --quiet --recursive https://github.com/RedisJSON/RedisJSON.git@$(BRANCH)
+	git clone --quiet --recursive https://github.com/RedisJSON/RedisJSON.git
 fi
 
-cd ../
+cd RedisJSON
+git checkout $BRANCH
+git pull --quiet --recurse-submodules
 
 # Install only rust, because the rest of the dependencies are already installed
 if [[ $NOP != 1 ]]; then
