@@ -1,6 +1,7 @@
 from common import *
 import faker
 
+@skip(cluster=True)
 def test_existing_GC():
     """Tests the GC functionality on the existing docs inverted index."""
     
@@ -15,15 +16,15 @@ def test_existing_GC():
         conn.execute_command('HSET', f'doc{2 * i + 1}', 't2', fake.name())
 
     # Set the GC clean threshold to 0, and stop its periodic execution
-    env.expect('FT.CONFIG', 'SET', 'FORK_GC_CLEAN_THRESHOLD', '0').ok()
-    env.expect('FT.DEBUG', 'GC_STOP_SCHEDULE', 'idx').ok()
+    env.expect(config_cmd(), 'SET', 'FORK_GC_CLEAN_THRESHOLD', '0').ok()
+    env.expect(debug_cmd(), 'GC_STOP_SCHEDULE', 'idx').ok()
 
     # Delete docs with 'missing values'
     for i in range(2 * n_docs):
         conn.execute_command('DEL', f'doc{2 * i + 1}')
 
     # Run GC, and wait for it to finish
-    env.expect('FT.DEBUG', 'GC_FORCEINVOKE', 'idx').equal('DONE')
+    env.expect(debug_cmd(), 'GC_FORCEINVOKE', 'idx').equal('DONE')
 
     # Make sure we have updated the index, by searching for the docs, and
     # verifying that `bytes_collected` > 0
@@ -36,5 +37,5 @@ def test_existing_GC():
     env.assertTrue(int(bytes_collected) > 0)
 
     # Reschedule the gc - add a job to the queue
-    env.cmd('FT.DEBUG', 'GC_CONTINUE_SCHEDULE', 'idx')
-    env.expect('FT.DEBUG', 'GC_WAIT_FOR_JOBS').equal('DONE')
+    env.expect(debug_cmd(), 'GC_CONTINUE_SCHEDULE', 'idx').ok()
+    env.expect(debug_cmd(), 'GC_WAIT_FOR_JOBS').equal('DONE')

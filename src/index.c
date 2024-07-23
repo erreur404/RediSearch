@@ -965,9 +965,8 @@ static void NI_Free(IndexIterator *it) {
   nc->child->Free(nc->child);
   if (nc->wcii) {
     nc->wcii->Free(nc->wcii);
-  } else {
-    IndexResult_Free(nc->base.current);
   }
+  IndexResult_Free(nc->base.current);
 
   rm_free(it);
 }
