@@ -175,8 +175,8 @@ static bool FGC_childRepairInvidx(ForkGC *gc, RedisSearchCtx *sctx, InvertedInde
   IndexBlock *blocklist = array_new(IndexBlock, idx->size);
   MSG_IndexInfo ixmsg = {.nblocksOrig = idx->size};
   bool rv = false;
+  IndexRepairParams params_s = {0};
   if (!params) {
-    IndexRepairParams params_s = {0};
     params = &params_s;
   }
 
