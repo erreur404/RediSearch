@@ -1242,7 +1242,7 @@ static t_docId NI_LastDocId(void *ctx) {
 IndexIterator *NewNotIterator(IndexIterator *it, t_docId maxDocId,
   double weight, struct timespec timeout, QueryEvalCtx *q) {
 
-  NotContext *nc = rm_malloc(sizeof(*nc));
+  NotContext *nc = rm_calloc(1, sizeof(*nc));
   bool optimized = q && q->sctx->spec->rule && q->sctx->spec->rule->index_all;
   if (optimized) {
     nc->wcii = NewWildcardIterator(q);
