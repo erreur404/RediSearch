@@ -193,7 +193,7 @@ def MissingTestIndex(env, conn, idx, ftype, field1, field2, val1, val2, field1Op
     dialect = int(env.cmd(config_cmd(), 'GET', 'DEFAULT_DIALECT')[0][1])
     if dialect in [2, 3]:
         res = conn.execute_command(
-            'FT.AGGREGATE', idx, '*', 'GROUPBY', '1', f'@{field1}', 
+            'FT.AGGREGATE', idx, '*', 'GROUPBY', '1', f'@{field1}',
             'REDUCE', 'COUNT', '0', 'AS', 'count',
             'SORTBY', 2, '@count', 'DESC'
         )
@@ -203,7 +203,7 @@ def MissingTestIndex(env, conn, idx, ftype, field1, field2, val1, val2, field1Op
                     # Decode the string
                     s = f'{val1}'
                     s = s[2:-1]
-                    val1 = bytes(s, 'utf-8').decode('unicode_escape')            
+                    val1 = bytes(s, 'utf-8').decode('unicode_escape')
             expected = [2, [field1, f'{val1}', 'count', '3'], [field1, None, 'count', '2']]
         else: # JSON
             if dialect == 2:
@@ -424,9 +424,9 @@ def HashMissingTest(env, conn):
                                  field2, val2, 'id', 3)
             conn.execute_command('HSET', DOC_WITH_NONE, 'text', 'dummy',
                                  'id', 4)
-            conn.execute_command('HSET', DOC_WITH_BOTH_AND_TEXT, field1, val1, 
+            conn.execute_command('HSET', DOC_WITH_BOTH_AND_TEXT, field1, val1,
                                 field2, val2, 'text', 'dummy', 'id', 5)
-    
+
     # Create an index with multiple fields types that index missing values, i.e.,
     # index documents that do not have these fields.
     for field, ftype, opt, val1, val2, field1Opt in fields_and_values:
@@ -468,14 +468,15 @@ def HashMissingTest(env, conn):
         MissingTestTwoMissingFields(env, conn, idx, ftype, field1, field2, val1, val2, False)
         env.flush()
 
-def testMissing(env):
+def testMissing():
     """Tests the missing values indexing feature thoroughly."""
 
+    env = DialectEnv()
+    conn = getConnectionByEnv(env)
     MAX_DIALECT = set_max_dialect(env)
 
     for dialect in range(2, MAX_DIALECT + 1):
-        env = Env(moduleArgs="DEFAULT_DIALECT " + str(dialect))
-        conn = getConnectionByEnv(env)
+        env.set_dialect(dialect)
 
         # Test missing fields indexing on hash documents
         HashMissingTest(env, conn)
@@ -539,15 +540,15 @@ def testMissingGC():
     env.assertEqual(res, [1, 'doc2'])
 
     # Set the GC clean threshold to 0, and stop its periodic execution
-    env.expect('FT.CONFIG', 'SET', 'FORK_GC_CLEAN_THRESHOLD', '0').ok()
-    env.expect('FT.DEBUG', 'GC_STOP_SCHEDULE', 'idx').ok()
+    env.expect(config_cmd(), 'SET', 'FORK_GC_CLEAN_THRESHOLD', '0').ok()
+    env.expect(debug_cmd(), 'GC_STOP_SCHEDULE', 'idx').ok()
 
     # Delete `doc2`
     conn.execute_command('DEL', 'doc2')
 
     # Run GC, and wait for it to finish
-    env.expect('FT.DEBUG', 'GC_FORCEINVOKE', 'idx').equal('DONE')
-    env.expect('FT.DEBUG', 'GC_WAIT_FOR_JOBS').equal('DONE')
+    env.expect(debug_cmd(), 'GC_FORCEINVOKE', 'idx').equal('DONE')
+    env.expect(debug_cmd(), 'GC_WAIT_FOR_JOBS').equal('DONE')
 
     # Search for the deleted document
     res = env.cmd('FT.SEARCH', 'idx', 'ismissing(@t)', 'NOCONTENT')
@@ -561,7 +562,7 @@ def testMissingGC():
     env.assertTrue(int(bytes_collected) > 0)
 
     # Reschedule the gc - add a job to the queue
-    env.cmd('FT.DEBUG', 'GC_CONTINUE_SCHEDULE', 'idx')
+    env.cmd(debug_cmd(), 'GC_CONTINUE_SCHEDULE', 'idx')
 
     env.flush()
 
@@ -574,16 +575,15 @@ def testMissingGC():
         conn.execute_command('HSET', f'doc{2 * i + 1}', 't2', fake.name())
 
     # Set the GC clean threshold to 0, and stop its periodic execution
-    env.expect('FT.CONFIG', 'SET', 'FORK_GC_CLEAN_THRESHOLD', '0').ok()
-    env.expect('FT.DEBUG', 'GC_STOP_SCHEDULE', 'idx').ok()
+    env.expect(config_cmd(), 'SET', 'FORK_GC_CLEAN_THRESHOLD', '0').ok()
+    env.expect(debug_cmd(), 'GC_STOP_SCHEDULE', 'idx').ok()
 
     # Delete docs with 'missing values'
     for i in range(n_docs):
         conn.execute_command('DEL', f'doc{2 * i + 1}')
 
     # Run GC, and wait for it to finish
-    env.expect('FT.DEBUG', 'GC_FORCEINVOKE', 'idx').equal('DONE')
-    env.expect('FT.DEBUG', 'GC_WAIT_FOR_JOBS').equal('DONE')
+    env.expect(debug_cmd(), 'GC_FORCEINVOKE', 'idx').equal('DONE')
 
     # Make sure we have updated the index, by searching for the docs, and
     # verifying that `bytes_collected` > 0
@@ -596,4 +596,5 @@ def testMissingGC():
     env.assertTrue(int(bytes_collected) > 0)
 
     # Reschedule the gc - add a job to the queue
-    env.cmd('FT.DEBUG', 'GC_CONTINUE_SCHEDULE', 'idx')
+    env.cmd(debug_cmd(), 'GC_CONTINUE_SCHEDULE', 'idx')
+    env.expect(debug_cmd(), 'GC_WAIT_FOR_JOBS').equal('DONE')
