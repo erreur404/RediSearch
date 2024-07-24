@@ -1242,6 +1242,7 @@ static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
   }
 
 cleanup:
+  rm_free(empty_indicator);
   RedisSearchCtx_UnlockSpec(sctx);
   StrongRef_Release(spec_ref);
   if (status != FGC_COLLECTED)  {
