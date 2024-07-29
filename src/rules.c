@@ -398,6 +398,7 @@ int SchemaRule_RdbLoad(StrongRef ref, RedisModuleIO *rdb, int encver) {
   }
   double score_default = LoadDouble_IOError(rdb, goto cleanup);
   RSLanguage lang_default = LoadUnsigned_IOError(rdb, goto cleanup);
+  bool index_all = LoadUnsigned_IOError(rdb, goto cleanup);
 
   QueryError status = {0};
   SchemaRule *rule = SchemaRule_Create(&args, ref, &status);
@@ -407,6 +408,7 @@ int SchemaRule_RdbLoad(StrongRef ref, RedisModuleIO *rdb, int encver) {
   }
   rule->score_default = score_default;
   rule->lang_default = lang_default;
+  rule->index_all = index_all;
 
   // No need to validate the reference here, since we are loading it from the RDB
   IndexSpec *sp = StrongRef_Get(ref);
@@ -475,9 +477,7 @@ void SchemaRule_RdbSave(SchemaRule *rule, RedisModuleIO *rdb) {
   }
   RedisModule_SaveDouble(rdb, rule->score_default);
   RedisModule_SaveUnsigned(rdb, rule->lang_default);
-  // TODO: Add support for rdb-save/load of index_all schema rule option.
-  // RedisModule_SaveUnsigned(rdb, 1);
-  // RedisModule_SaveUnsigned(rdb, rule->index_all);
+  RedisModule_SaveUnsigned(rdb, rule->index_all);
 }
 
 bool SchemaRule_ShouldIndex(struct IndexSpec *sp, RedisModuleString *keyname, DocumentType type) {
