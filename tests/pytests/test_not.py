@@ -1,11 +1,12 @@
 from common import *
 import faker
 
-def test_not_optimized(env):
+def test_not_optimized():
     """Tests the optimized version of the NOT iterator, which holds an optimized
     wildcard iterator which is its "reference" traversal iterator instead of the
     basic 'incremental iterator'"""
 
+    env = Env(moduleArgs='DEFAULT_DIALECT 2')
     conn = getConnectionByEnv(env)
 
     # Create an index that optimizes the wildcard iterator
@@ -31,14 +32,30 @@ def test_not_optimized(env):
     res = env.cmd('FT.SEARCH', 'idx', '-@t:123', 'LIMIT', '0', '0')
     env.assertEqual(res, [n_docs])
 
-    res = env.cmd('FT.SEARCH', 'idx', f'-@t:{names[0]}', 'LIMIT', '0', '0')
+    res = env.cmd('FT.SEARCH', 'idx', f'-(@t:{names[0]})', 'LIMIT', '0', '0')
     env.assertEqual(res, [n_docs-1])
 
+def test_not_optimized_with_missing():
+    """Tests the optimized version of the NOT iterator with the missing values
+    indexing enabled"""
 
+    env = Env(moduleArgs='DEFAULT_DIALECT 2')
+    conn = getConnectionByEnv(env)
 
+    # Create an index that optimizes the wildcard iterator
+    env.expect('FT.CREATE', 'idx', 'INDEXALL', 'ENABLE', 'SCHEMA', 't', 'TEXT', 'INDEXMISSING').ok()
 
-    # TODO: Test the "ismissing(@t) | -ismissing(@t)" query that failed before.
-    # Missing is the only thing that seems to be incompatible currently. Understand why.
-    # In general, once all tests pass when the default behavior is the optimized one -> We're fully backward compatible.
+    conn.execute_command('HSET', 'doc1', 't', 'hello')
+    conn.execute_command('HSET', 'doc2', 't2', 'world')
 
+    res = env.cmd('FT.SEARCH', 'idx', 'ismissing(@t)', 'NOCONTENT')
+    env.assertEqual(res, [1, 'doc2'])
 
+    res = env.cmd('FT.SEARCH', 'idx', '-ismissing(@t)', 'NOCONTENT')
+    env.assertEqual(res, [1, 'doc1'])
+
+    res = env.cmd('FT.SEARCH', 'idx', 'ismissing(@t) -ismissing(@t)', 'NOCONTENT')
+    env.assertEqual(res, [0])
+
+    res = env.cmd('FT.SEARCH', 'idx', 'ismissing(@t) | -ismissing(@t)', 'NOCONTENT')
+    env.assertEqual(res, [2, 'doc1', 'doc2'])

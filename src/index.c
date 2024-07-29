@@ -1102,13 +1102,6 @@ static int NI_ReadSorted_NO(void *ctx, RSIndexResult **hit) {
   }
 
   // advance our reader by one, and let's test if it's a valid value or not
-
-  // TODO: We need to place a wildcard iterator in the stomach of this iterator instead of this increment
-  // since this is equivalent to the current wildcard iterator behavior.
-  // Accordingly, we will need to address the different cases possible in the new state:
-    // For instance, now we will be able to have a scenario in which the doc-id of the base
-    // is higher than the one of that we got from the child (the current child) - since the GC didn't work yet
-    // and the doc-table is updated instantaneously.
   nc->base.current->docId++;
 
   // If we don't have a child result, or the child result is ahead of the current counter,
@@ -1156,8 +1149,10 @@ ok:
 static int NI_ReadSorted_O(void *ctx, RSIndexResult **hit) {
   NotContext *nc = ctx;
 
+  // TODO: Is this reachable? I think not.
   if (nc->lastDocId > nc->maxDocId) {
     IITER_SET_EOF(nc->wcii);
+    IITER_SET_EOF(&nc->base);
     return INDEXREAD_EOF;
   }
 
@@ -1174,12 +1169,14 @@ static int NI_ReadSorted_O(void *ctx, RSIndexResult **hit) {
   int wcii_rc = nc->wcii->Read(nc->wcii->ctx, &wcii_res);
 
   if (wcii_rc == INDEXREAD_EOF) {
-    // If the wildcard iterator is EOF, we're done
+    // If the wildcard iterator hit EOF, we're done
+    IITER_SET_EOF(&nc->base);
     return INDEXREAD_EOF;
   }
+  nc->base.current->docId = wcii_res->docId;
 
   // Notice: The wildcard iterator result still can't be higher then the child
-  // result (docId), as promised in the non-optimized case (TODO: Verify this).
+  // result (docId), as promised in the non-optimized case.
 
   if (cr == NULL || cr->docId > wcii_res->docId || !IITER_HAS_NEXT(nc->child)) {
     goto ok;
@@ -1187,7 +1184,10 @@ static int NI_ReadSorted_O(void *ctx, RSIndexResult **hit) {
 
   while (cr->docId == wcii_res->docId) {
     wcii_rc = nc->wcii->Read(nc->wcii->ctx, &wcii_res);
+    nc->base.current->docId = wcii_res->docId;
+
     if (wcii_rc == INDEXREAD_EOF) {
+      IITER_SET_EOF(&nc->base);
       return INDEXREAD_EOF;
     }
 
@@ -1199,20 +1199,15 @@ static int NI_ReadSorted_O(void *ctx, RSIndexResult **hit) {
     // Check for timeout
     if (TimedOut_WithCtx_Gran(&nc->timeoutCtx, 5000)) {
       IITER_SET_EOF(nc->wcii);
+      IITER_SET_EOF(&nc->base);
       return INDEXREAD_TIMEOUT;
     }
   }
   nc->timeoutCtx.counter = 0;
 
 ok:
-  // Make sure we didn't overflow
-  if (wcii_res->docId > nc->maxDocId) {
-    IITER_SET_EOF(nc->wcii);            // TODO: Needed?
-    return INDEXREAD_EOF;
-  }
-
-  nc->lastDocId = wcii_res->docId;
-  if (hit) *hit = wcii_res;
+  nc->lastDocId = nc->base.current->docId;
+  if (hit) *hit = nc->base.current;
   ++nc->len;
 
   return INDEXREAD_OK;
