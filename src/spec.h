@@ -200,7 +200,8 @@ typedef uint16_t FieldSpecDedupeArray[SPEC_MAX_FIELDS];
   (Index_StoreFreqs | Index_StoreFieldFlags | Index_StoreTermOffsets | Index_StoreNumeric | \
    Index_WideSchema)
 
-#define INDEX_CURRENT_VERSION 23
+#define INDEX_CURRENT_VERSION 24
+#define INDEX_INDEXALL_VERSION 24
 #define INDEX_GEOMETRY_VERSION 23
 #define INDEX_VECSIM_TIERED_VERSION 22
 #define INDEX_VECSIM_MULTI_VERSION 21
