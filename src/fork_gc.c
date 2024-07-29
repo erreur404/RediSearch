@@ -1134,7 +1134,7 @@ static FGCError FGC_parentHandleMissingDocs(ForkGC *gc) {
   FGCError status = FGC_COLLECTED;
   size_t fieldNameLen;
   char *fieldName = NULL;
-  
+
   if (FGC_recvBuffer(gc, (void **)&fieldName, &fieldNameLen) != REDISMODULE_OK) {
     return FGC_CHILD_ERROR;
   }
@@ -1170,14 +1170,15 @@ static FGCError FGC_parentHandleMissingDocs(ForkGC *gc) {
   }
 
   FGC_applyInvertedIndex(gc, &idxbufs, &info, idx);
-  FGC_updateStats(gc, sctx, info.nentriesCollected, info.nbytesCollected, info.nbytesAdded);
 
   if (idx->numDocs == 0) {
     // inverted index was cleaned entirely lets free it
     if (sctx->spec->missingFieldDict) {
+      info.nbytesCollected += InvertedIndex_MemUsage(idx);
       dictDelete(sctx->spec->missingFieldDict, fieldName);
     }
   }
+  FGC_updateStats(gc, sctx, info.nentriesCollected, info.nbytesCollected, info.nbytesAdded);
 
 cleanup:
 
@@ -1232,14 +1233,14 @@ static FGCError FGC_parentHandleExistingDocs(ForkGC *gc) {
   FGC_applyInvertedIndex(gc, &idxbufs, &info, idx);
   // We don't count the records that we removed, because we also don't count
   // their addition (they are duplications so we have no such desire).
-  FGC_updateStats(gc, sctx, 0, info.nbytesCollected, info.nbytesAdded);
 
   if (idx->numDocs == 0) {
     // inverted index was cleaned entirely, let's free it
-    // TODO: Count this memory as well!
+    info.nbytesCollected += InvertedIndex_MemUsage(idx);
     InvertedIndex_Free(idx);
     sp->existingDocs = NULL;
   }
+  FGC_updateStats(gc, sctx, 0, info.nbytesCollected, info.nbytesAdded);
 
 cleanup:
   rm_free(empty_indicator);

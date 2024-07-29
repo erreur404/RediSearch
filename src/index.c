@@ -1149,13 +1149,6 @@ ok:
 static int NI_ReadSorted_O(void *ctx, RSIndexResult **hit) {
   NotContext *nc = ctx;
 
-  // TODO: Is this reachable? I think not.
-  if (nc->lastDocId > nc->maxDocId) {
-    IITER_SET_EOF(nc->wcii);
-    IITER_SET_EOF(&nc->base);
-    return INDEXREAD_EOF;
-  }
-
   RSIndexResult *cr = NULL;
   // if we have a child, get the latest result from the child
   cr = IITER_CURRENT_RECORD(nc->child);

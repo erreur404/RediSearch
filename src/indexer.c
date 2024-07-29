@@ -315,7 +315,7 @@ static void writeExistingDocs(RSAddDocumentCtx *aCtx, RedisSearchCtx *sctx) {
     // Create the inverted index if it doesn't exist
     size_t index_size;
     aCtx->spec->existingDocs = NewInvertedIndex(Index_DocIdsOnly, 1, &index_size);
-    // aCtx->spec->stats.invertedSize += index_size;
+    aCtx->spec->stats.invertedSize += index_size;
   }
 
   t_docId docId = aCtx->doc->docId;
