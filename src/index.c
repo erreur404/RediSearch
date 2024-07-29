@@ -927,8 +927,8 @@ static size_t II_Len(void *ctx) {
  * misses, and NOTFOUND for hits. It takes its reference from a wildcard iterator
  * if `INDEXALL` is on (optimization). */
 typedef struct {
-  IndexIterator base;          // counter index iterator (only counts)
-  IndexIterator *wcii;        // wildcard index iterator
+  IndexIterator base;          // base index iterator
+  IndexIterator *wcii;         // wildcard index iterator
   IndexIterator *child;
   t_docId lastDocId;
   t_docId maxDocId;
@@ -951,10 +951,9 @@ static void NI_Rewind(void *ctx) {
   nc->lastDocId = 0;
   if (nc->wcii) {
     nc->wcii->Rewind(nc->wcii->ctx);
-  } else {
-    nc->base.current->docId = 0;
-    nc->base.isValid = 1;
   }
+  nc->base.current->docId = 0;
+  nc->base.isValid = 1;
   nc->child->Rewind(nc->child->ctx);
 }
 
@@ -1011,7 +1010,7 @@ static int NI_SkipTo_NO(void *ctx, t_docId docId, RSIndexResult **hit) {
   }
 
 ok:
-  // NOT FOUND or end means OK. We need to set the docId on the hit we will bubble up
+  // NOT FOUND or end means OK. We need to set the docId to the hit we will bubble up
   nc->base.current->docId = nc->lastDocId = docId;
   *hit = nc->base.current;
   return INDEXREAD_OK;
@@ -1049,9 +1048,9 @@ int NI_SkipTo_O(void *ctx, t_docId docId, RSIndexResult **hit) {
     // Skip the inner wildcard to `docId`, and return NOTFOUND
     wcii_rc = nc->wcii->SkipTo(nc->wcii->ctx, docId, hit);
     if (wcii_rc == INDEXREAD_EOF) {
-      return INDEXREAD_EOF;
+      IITER_SET_EOF(&nc->base);
     }
-    nc->lastDocId = nc->wcii->LastDocId(nc->wcii->ctx);     // Either `docId` or higher
+    nc->lastDocId = nc->base.current->docId = nc->wcii->LastDocId(nc->wcii->ctx);
     return INDEXREAD_NOTFOUND;
   }
 
@@ -1064,16 +1063,16 @@ int NI_SkipTo_O(void *ctx, t_docId docId, RSIndexResult **hit) {
   }
 
 ok:
-  // NOT FOUND or end means OK. We need to set the docId on the hit we will bubble up
+  // NOT FOUND or end means OK. We need to set the docId to the hit we will bubble up
   wcii_rc = nc->wcii->SkipTo(nc->wcii->ctx, docId, hit);
+  nc->base.current->docId = nc->wcii->LastDocId(nc->wcii->ctx);
   if (wcii_rc == INDEXREAD_EOF) {
+    IITER_SET_EOF(&nc->base);
     return INDEXREAD_EOF;
   } else if (wcii_rc == INDEXREAD_NOTFOUND) {
-    nc->lastDocId = nc->wcii->LastDocId(nc->wcii->ctx);
     return INDEXREAD_NOTFOUND;
   }
   RS_LOG_ASSERT_FMT(nc->wcii->LastDocId(nc->wcii->ctx) == docId, "Expected docId to be %llu, got %llu", docId, nc->wcii->LastDocId(nc->wcii->ctx));
-  nc->lastDocId = docId;
   return INDEXREAD_OK;
 }
 
