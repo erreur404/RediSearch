@@ -573,7 +573,6 @@ void trimUnionIterator(IndexIterator *iter, size_t offset, size_t limit, bool as
     }
   } else {
     UI_SyncIterList(ui);
-    // todo:
   }
   iter->Read = UI_ReadUnsorted;
 }
@@ -1025,8 +1024,8 @@ int NI_SkipTo_O(void *ctx, t_docId docId, RSIndexResult **hit) {
 
   // do not skip beyond max doc id
   if (docId > nc->maxDocId) {
-    // TODO: Verify that this is the correct way to handle this
     IITER_SET_EOF(nc->wcii);
+    IITER_SET_EOF(&nc->base);
     return INDEXREAD_EOF;
   }
 

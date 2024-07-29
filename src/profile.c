@@ -11,8 +11,6 @@ void printReadIt(RedisModule_Reply *reply, IndexIterator *root, size_t counter, 
   IndexReader *ir = root->ctx;
 
   RedisModule_Reply_Map(reply);
-
-  // TODO: Needs to be updated. We have the DocIdsOnly encoder/decoder for missing/existingDocs invertedIndexes as well.
   if (ir->idx->flags == Index_DocIdsOnly) {
     if (ir->record->term.term != NULL) {
       printProfileType("TAG");
