@@ -19,8 +19,10 @@ env:
                     'ubuntu:focal',
                     'ubuntu:bionic',
                     'rockylinux:8',
+                    'rockylinux:9',
                     'debian:bullseye',
                     'gcc:12-bookworm',
+                    'amazonlinux:2',
                     'amazonlinux:2023']"
 
 on:
@@ -108,6 +110,10 @@ jobs:
           # amazonlinux:2 needs pre-checkout dependencies
           if 'amazonlinux:2' in x86_platforms:
             x86_include.append({
+              'OS': 'amazonlinux:2',
+              'pre-deps': "yum install -y tar gzip"})
+          if 'amazonlinux:2' in arm_platforms:
+            arm_include.append({
               'OS': 'amazonlinux:2',
               'pre-deps': "yum install -y tar gzip"})
 
