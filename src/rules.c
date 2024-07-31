@@ -398,7 +398,10 @@ int SchemaRule_RdbLoad(StrongRef ref, RedisModuleIO *rdb, int encver) {
   }
   double score_default = LoadDouble_IOError(rdb, goto cleanup);
   RSLanguage lang_default = LoadUnsigned_IOError(rdb, goto cleanup);
-  bool index_all = LoadUnsigned_IOError(rdb, goto cleanup);
+  bool index_all = false;
+  if (encver >= INDEX_INDEXALL_VERSION) {
+    index_all = LoadUnsigned_IOError(rdb, goto cleanup);
+  }
 
   QueryError status = {0};
   SchemaRule *rule = SchemaRule_Create(&args, ref, &status);
